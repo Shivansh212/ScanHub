@@ -1,0 +1,280 @@
+import ProfileCard from "./ProfileCard";
+import ResumeUpload from "./ResumeUpload";
+import ResumeStatus from "./ResumeStatus";
+import { UseAuth } from "../../hooks/useAuth";
+import { fetchResumeStatus, type ResumeStatusType } from "../../services/resumeService";
+import { useEffect, useState } from "react";
+import ResumeScoreCard from "../../components/ResumeScoreCard";
+import { fetchResumeAnalysis } from "../../services/resumeService"; 
+import SkillGapCard from "../../components/SkillGapCard";
+import api from "../../services/api";
+import ReactMarkdown from "react-markdown";
+import { useNavigate } from "react-router-dom";
+import ResumeFeedbackCard from "../../components/ResumeFeedbackCard";
+
+const CandidateDashboard = () => {
+    const { logout } = UseAuth();
+    const navigate = useNavigate();
+    const [resumeStatus, setResumeStatus] = useState<ResumeStatusType>("NOT_UPLOADED");
+    const [isUploading, setIsUploading] = useState(false);
+    const [analysis, setAnalysis] = useState<any>(null);
+    const [jobDescription, setJobDescription] = useState("");
+    const [loadingJD, setLoadingJD] = useState(false);
+    const [roadmap, setRoadmap] = useState<string | null>(null);
+    const [roadmapLoading, setRoadmapLoading] = useState(false);
+    const [targetRole, setTargetRole] = useState("");
+    const [experienceLevel, setExperienceLevel] = useState("");
+
+    useEffect(() => {
+        const loadInitialStatus = async () => {
+            try {
+                const data = await fetchResumeStatus();
+                setResumeStatus(data.status);
+            } catch (err) {
+                console.log(err);
+            }
+        };
+        loadInitialStatus();
+    }, []);
+
+    useEffect(() => {
+        if (resumeStatus !== "UPLOADING" && resumeStatus !== "PARSING") {
+            return;
+        }
+        const interval = setInterval(async () => {
+            const data = await fetchResumeStatus();
+            setResumeStatus(data.status);
+
+            if (data.status === "COMPLETED" || data.status === "FAILED") {
+                clearInterval(interval);
+            }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [resumeStatus]);
+
+    useEffect(() => {
+        if (resumeStatus !== "COMPLETED") return;
+        const loadAnalysis = async () => {
+            try {
+                const data = await fetchResumeAnalysis();
+                setAnalysis(data);
+            } catch (err) {
+                console.log(err);
+            }
+        };
+        loadAnalysis();
+    }, [resumeStatus]);
+
+    const handleSkillGapAnalysis = async () => {
+        try {
+            setLoadingJD(true);
+            const formData = new FormData();
+            formData.append("job_description", jobDescription);
+            await api.post("/candidate/analyze", formData);
+
+            const latest = await fetchResumeAnalysis();
+            setAnalysis(latest);
+        } catch (err: any) {
+            const error_message = err.response?.data?.error || "Analysis failed. Please try again.";
+            alert(error_message);
+            console.log(err);
+        } finally {
+            setLoadingJD(false);
+        }
+    };
+
+    const handleGenerateRoadmap = async () => {
+        if (!analysis) return alert("Please analyze your resume first.");
+        if (!targetRole || !experienceLevel) return alert("Please enter target role and experience level.");
+        
+        setRoadmapLoading(true);
+        try {
+            const res = await api.post("/candidate/roadmap/generate", {
+                target_role: targetRole,
+                experience_level: experienceLevel,
+                matched_skills: analysis.matched_skills,
+                missing_skills: analysis.missing_skills
+            });
+            setRoadmap(res.data.roadmap);
+        } catch (err) {
+            console.log("Error generating roadmap:", err);
+        } finally {
+            setRoadmapLoading(false);
+        }
+    };
+
+    const handleNewSearch = () => {
+        setAnalysis(null);
+        setJobDescription("");
+        setResumeStatus("NOT_UPLOADED");
+        setRoadmap(null);
+    };
+
+    const nullAnalysis = () => {
+        setAnalysis(null);
+    };
+
+    return (
+        <>
+            {/* 🚀 THE PRINT PORTAL: Completely outside the main layout container */}
+            {roadmap && (
+                <div className="print-only-portal">
+                    <h1>HireSense AI: Learning Roadmap</h1>
+                    <p style={{ marginBottom: '10px', fontWeight: 'bold' }}>
+                        Target Role: {targetRole} | Experience Level: {experienceLevel}
+                    </p>
+                    <hr style={{ marginBottom: '20px', border: 'none', borderTop: '1px solid #eee' }} />
+                    <ReactMarkdown>{roadmap}</ReactMarkdown>
+                    <footer style={{ marginTop: '40px', fontSize: '10pt', color: '#888', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                        Generated by HireSense AI on {new Date().toLocaleDateString()}
+                    </footer>
+                </div>
+            )}
+
+            {/* --- MAIN DASHBOARD UI --- */}
+            <div className="min-h-screen bg-[#0f1115] text-slate-200 p-8">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold">Candidate Dashboard</h1>
+
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => navigate("/candidate/mock-interview")}
+                            className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-white transition"
+                        >
+                            Practice Mock Interview
+                        </button>
+                        <button 
+                            onClick={logout}
+                            className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500 hover:text-white transition-all text-sm font-medium"
+                        >
+                            Logout
+                        </button>
+                    </div>    
+                </div>
+
+                {/* Job Description Section */}
+                <div className="bg-zinc-100 p-4 rounded-xl shadow mb-6 text-black">
+                    <h2 className="text-lg font-semibold mb-2">Job Description</h2>
+                    <textarea
+                        value={jobDescription}
+                        onChange={(e) => setJobDescription(e.target.value)}
+                        placeholder="Paste the job description here..."
+                        rows={10}
+                        className="w-full border rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                    />
+                    <div className="flex gap-4">
+                        <button
+                            disabled={!jobDescription || loadingJD}
+                            onClick={handleSkillGapAnalysis}
+                            className="mt-3 px-4 py-2 bg-black text-white rounded-lg border border-slate-700 hover:bg-slate-700 transition-all disabled:opacity-50"
+                        >
+                            {loadingJD ? "Analyzing..." : "Analyze Resume vs JD"}
+                        </button>
+                        <button
+                            onClick={handleNewSearch}
+                            className="mt-3 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 hover:bg-slate-700 transition-all"
+                        >
+                            Reset Dashboard
+                        </button>
+                        <button
+                            onClick={nullAnalysis}
+                            className="mt-3 px-4 py-2 bg-violet-800 text-white rounded-lg border border-red-900 hover:bg-purple-800 transition-all"
+                        >
+                            Clear Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <ProfileCard isUploading={isUploading} />
+                    <ResumeUpload setStatus={setResumeStatus} setIsUploading={setIsUploading} />
+                    <ResumeStatus status={resumeStatus} />
+                    <ResumeScoreCard score={analysis?.resume_score ?? null} />
+                    {(analysis && 
+                        <>
+                            <div className="md:col-span-2">
+                                <SkillGapCard 
+                                    matchedSkills={analysis.matched_skills} 
+                                    missingSkills={analysis.missing_skills} 
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <ResumeFeedbackCard data={analysis} />
+                            </div>
+                        </>
+                    )}
+                    
+                    {/* Roadmap Inputs */}
+                    <div id="roadmap-section" className="mt-6 col-span-full">
+                    <h1 className="text-xl font-bold text-white mb-2">Generate Your Personal Learning Roadmap Below 👇</h1></div>
+                    <div className="mt-6 bg-[#0f1115] border border-slate-700 rounded-lg p-4 col-span-full">
+                        <h3 className="text-lg font-semibold mb-3">Learning Roadmap Details</h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <input
+                                type="text"
+                                placeholder="Target Role (e.g. Backend Developer)"
+                                value={targetRole}
+                                onChange={(e) => setTargetRole(e.target.value)}
+                                className="px-4 py-2 rounded-lg bg-[#0f1115] border border-slate-700 text-slate-200"
+                            />
+                            <select
+                                value={experienceLevel}
+                                onChange={(e) => setExperienceLevel(e.target.value)}
+                                className="px-4 py-2 rounded-lg bg-[#0f1115] border border-slate-700 text-slate-200"
+                            >
+                                <option value="">Select Experience Level</option>
+                                <option value="Fresher">Fresher</option>
+                                <option value="1-2 years">1-2 years</option>
+                                <option value="2-4 years">2-4 years</option>
+                                <option value="4+ years">4+ years</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleGenerateRoadmap}
+                        disabled={roadmapLoading || !targetRole || !experienceLevel || analysis?.missing_skills.length === 0}
+                        className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
+                    >
+                        {roadmapLoading ? "Generating Roadmap..." : "Generate Learning Roadmap"}
+                    </button>
+
+                    {/* On-Screen Roadmap Rendering */}
+                    {roadmap && (
+                        <div className="col-span-full mt-12 p-8 border border-slate-700 rounded-2xl bg-[#111318] shadow-2xl">
+                            <div className="flex items-center gap-3 mb-8 border-b border-slate-800 pb-4">
+                                <span className="text-3xl">🎯</span>
+                                <h2 className="text-2xl font-bold text-white uppercase tracking-wider">
+                                    Your Personal Growth Roadmap
+                                </h2>
+                            </div>
+                            <div className="text-slate-300 leading-relaxed">
+                                <ReactMarkdown
+                                    components={{
+                                        h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-amber-400 mt-8 mb-4 underline decoration-amber-500/30" {...props} />,
+                                        h2: ({ node, ...props }) => <h2 className="text-xl font-bold text-white mt-10 mb-4 bg-amber-500/10 py-1 px-3 border-l-4 border-amber-500 rounded-r" {...props} />,
+                                        h3: ({ node, ...props }) => <h3 className="text-lg font-bold text-slate-100 mt-6 mb-2 flex items-center before:content-['▹'] before:mr-2 before:text-amber-500" {...props} />,
+                                        ul: ({ node, ...props }) => <ul className="list-none space-y-3 mb-6 ml-4" {...props} />,
+                                        li: ({ node, ...props }) => <li className="flex items-start gap-2 before:mt-1.5 before:h-1.5 before:w-1.5 before:rounded-full before:bg-amber-400/60 before:shrink-0" {...props} />,
+                                        p: ({ node, ...props }) => <p className="mb-4 text-slate-400" {...props} />,
+                                        strong: ({ node, ...props }) => <strong className="text-white font-extrabold" {...props} />,
+                                    }}
+                                >
+                                    {roadmap}
+                                </ReactMarkdown>
+                            </div>
+                            <button 
+                                onClick={() => window.print()}
+                                className="mt-8 px-6 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500 hover:text-white transition-all text-sm font-bold"
+                            >
+                                Download as PDF
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default CandidateDashboard;

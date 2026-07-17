@@ -1,0 +1,39 @@
+# --- Logs & Debugging ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Frontend (React/Vite/TS) ---
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env*
+frontend/.eslintcache
+
+# --- Backend (FastAPI/Python/PostgreSQL) ---
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/.pytest_cache/
+backend/db.sqlite3
+backend/.ipynb_checkpoints/
+backend/.coverage
+backend/htmlcov/
+
+# --- Data & Security (CRITICAL) ---
+backend/data/
+.env
+.env.*
+
+# --- OS & IDE (Universal) ---
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.swp
+*.swo

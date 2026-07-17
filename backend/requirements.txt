@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pandas
+pdfplumber
+python-docx
+scikit-learn
+joblib
+python-multipart
+openai>=1.0.0
+python-dotenv
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+pydantic[email]
