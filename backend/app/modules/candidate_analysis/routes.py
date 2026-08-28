@@ -38,7 +38,7 @@ def analyze_candidate_resume(
 ):
     try:
         if resume :
-        # 1️⃣ Upload started
+        # 1️ Upload started
             user.resume_status = "UPLOADING"
             db.commit()
 
@@ -56,7 +56,7 @@ def analyze_candidate_resume(
             unique_name = f"user_{user.id}_{int(time.time())}.{filename}"
             file_path = os.path.join(RAW_DIR, unique_name)
 
-            # 2️⃣ Save file
+            # 2️ Save file
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(resume.file, buffer)
 
@@ -74,7 +74,7 @@ def analyze_candidate_resume(
                 ) 
             file_extension = file_path.split(".")[-1].lower()   
 
-        # 3️⃣ Parsing started
+        # 3️ Parsing started
         user.resume_status = "PARSING"
         db.commit()
         # simulate heavy work
@@ -90,7 +90,7 @@ def analyze_candidate_resume(
         else:
             resume_text = ingestion.extract_text_from_txt(file_path)
 
-        # 🚨 DEBUG CHECK - This will now be 100% accurate to the file you just uploaded
+        #  DEBUG CHECK - This will now be 100% accurate to the file you just uploaded
         print(f"DEBUG: DIRECT TEXT LENGTH -> {len(resume_text)}")
 
         if not resume_text or len(resume_text) < 10:
@@ -126,7 +126,7 @@ def analyze_candidate_resume(
         else:
             result = {"message": "Resume Uploaded and Parsed Successfully!."}    
 
-        # 4️⃣ Completed
+        # 4️ Completed
         user.resume_status = "COMPLETED"
         user.resume_uploaded = True
         user.resume_path = file_path

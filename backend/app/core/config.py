@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    PROJECT_NAME: str = "HireSense AI"
+    PROJECT_NAME: str = "IntelliHire"
     
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
