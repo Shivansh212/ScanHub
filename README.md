@@ -1,4 +1,4 @@
-# Resume Lens
+# ScanHub
 
 **IntelliHire** is an AI-powered Hiring Intelligence Platform designed to bridge the gap between raw candidate data and actionable recruitment insights. By combining generative AI, natural language processing, and a modern web interface, this platform streamlines the interview lifecycle for both recruiters and applicants.
 
